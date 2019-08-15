@@ -288,6 +288,8 @@ class spintexture3D():
             points = np.transpose(points)
         else:
             points = self.rvals
+        print self.m
+        print np.shape(self.m)
         vtk = VtkData(UnstructuredGrid(points,),
                       PointData(Vectors(self.m),
                                 Scalars(np.sum(np.absolute(self.m), axis=1))),
@@ -339,9 +341,9 @@ class spintexture3D():
 if __name__ == "__main__":
     q = spintexture3D()
     # , r=1/np.pi)
-    q.makesphere([0, 30, 60, 90, 120, 150, 180],
-                 [1, 12, 18, 24, 18, 12, 1])
-    # q.makespace(120, 120, 0, 12)
+    # q.makesphere([0, 30, 60, 90, 120, 150, 180],
+    #             [1, 12, 18, 24, 18, 12, 1])
+    q.makespace(120, 120, 0, 12)
     q.makeskyrmion(1, 90)
     # q.makecone(70., 90, 0, q_vector=[1, 0, 0])  # make helix *2/rt(3)
     q.makevecvtk()

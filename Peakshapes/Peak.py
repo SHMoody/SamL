@@ -30,10 +30,10 @@ class Peak1D:
         self.minht = self.ydata[0]  # assumes first value is backgroud
         self.gfwhm = self.xdata[7] - self.xdata[0]
         # Assumes ~7 points across peak, xdata evenly spaced
-        self.shapes = ['Gaussian', 'Lorentzian', 'PearsonVII',
-                                   'Pseudovoight', 'Asymgauss', 'Asymloren',
-                                   'Multiple']
-        self.funcs = [gaussian, lorentzian, pearsonVII,
+        self.shapes = ['Sinc', 'Gaussian', 'Lorentzian', 'PearsonVII',
+                       'Pseudovoight', 'Asymgauss', 'Asymloren',
+                       'Multiple']
+        self.funcs = [sinc, gaussian, lorentzian, pearsonVII,
                       pseudovoight, asymgaussian, asymlorentzian,
                       self.multipeak]
 
@@ -55,7 +55,7 @@ class Peak1D:
         x = 0
         for i in self.functions:
             x += 1
-            if i == 'Gaussian' or i == 'Lorentzian':
+            if i == 'Gaussian' or i == 'Lorentzian' or i == 'Sinc':
                 fakelist.append(3)
             elif i == 'Pseudovoight' or i == 'Asymgauss' or i == 'Asymloren':
                 fakelist.append(4)
@@ -77,7 +77,8 @@ class Peak1D:
 
     def makebounds(self, bounds=0):
         if bounds == 0:
-            if self.shape == 'Gaussian' or self.shape == 'Lorentzian':
+            if self.shape == 'Gaussian' or self.shape == 'Lorentzian'\
+                    or self.shape == 'Sinc':
                 self.bounds = ((-np.inf, 0, 0, -np.inf),
                                (np.inf, np.inf, np.inf, np.inf))
             elif self.shape == 'Pseudovoight':
@@ -87,14 +88,16 @@ class Peak1D:
                 self.bounds = ((-np.inf, 0, 0, 0, 0),
                                (np.inf, np.inf, np.inf, np.inf, np.inf))
             elif self.shape == 'Multiple':
-                #se np.tile(np.array([-np.inf, np.inf]),
+                # se np.tile(np.array([-np.inf, np.inf]),
                 #              len(self.args))
                 self.bounds = tuple(
                     map(tuple, np.tile(np.array([-np.inf, np.inf]),
                                        len(self.args)).reshape(2,
                                                                len(self.args),
                                                                order='F')))
-
+            elif self.shape == 'Sinc':
+                self.bounds = ((-np.inf, 0, 0, 0, 0),
+                               (np.inf, np.inf, np.inf, np.inf, np.inf))
         elif type(bounds) == list:
             for i in range(len(bounds)):
                 if bounds[i] == None:
@@ -111,6 +114,14 @@ class Peak1D:
             print 'Input: [(x0,x0),(fw,fw), (A,A), None'
             quit()
 
+    def fit_sinc(self):
+        self.shape = 'Sinc'
+        self.boundscheck()
+        self.popt, self.pcov = curve_fit(sinc, self.xdata, self.ydata,
+                                         [self.center, 1, self.maxht,
+                                          self.minht], sigma=self.yerrs,
+                                         bounds=self.bounds)
+
     def fit_gaussian(self):
         self.shape = 'Gaussian'
         self.boundscheck()
@@ -118,8 +129,8 @@ class Peak1D:
         # fits a gaussian function to the data and updates the peak shape
         self.popt, self.pcov = curve_fit(gaussian, self.xdata, self.ydata,
                                          [self.center, self.gfwhm,
-                                          self.maxht, self.minht], sigma=self.yerrs,
-                                         bounds=self.bounds)
+                                          self.maxht, self.minht],
+                                         sigma=self.yerrs, bounds=self.bounds)
 
     def fit_lorentzian(self):  # MIGHT NOT BE NORMALISED
         self.shape = 'Lorentzian'
@@ -161,7 +172,6 @@ class Peak1D:
                                          bounds=self.bounds)
 
     def multipeak(self, xdata, *args):
-
         out = np.zeros(np.shape(xdata))  # creating output arra
         args = self.__argsareeasy(*args)
         for i in range(len(self.functions)):
@@ -180,7 +190,7 @@ class Peak1D:
         self.boundscheck()
         if plot:
             plt.errorbar(self.xdata, self.ydata, yerr=(self.ydata)**0.5,
-                         ls='none', marker='x')
+                         ls='--', marker='x')
             plt.plot(self.xdata, self.multipeak(self.xdata, args))
             plt.title('ititial parameters')
             plt.show()
@@ -188,6 +198,7 @@ class Peak1D:
                                          self.xdata, self.ydata,
                                          p0=args, sigma=self.yerrs, maxfev=5000,
                                          bounds=self.bounds)
+
     def funcfinder(self):
             # allows the correct peak shape to be used in other functions
         for i in self.shapes:
@@ -212,7 +223,7 @@ class Peak1D:
                          self.maxht, self.minht), ls='-')
         plt.show()
 
-    def plot(self, detail=False, hold = False):
+    def plot(self, detail=False, hold=False):
         f = self.funcfinder()
         plt.figure()
         plt.errorbar(self.xdata, self.ydata, yerr=(self.ydata)**0.5,
@@ -565,7 +576,7 @@ class lattice():
         rect = patches.Rectangle((location[0], location[1]),
                                  pixels[0], pixels[1],
                                  linewidth=1, edgecolor='r', facecolor='none')
-        ax.imshow(self.im, aspect = 'auto')
+        ax.imshow(self.im, aspect='auto')
         ax.add_patch(rect)
         plt.show()
 
@@ -574,7 +585,7 @@ class lattice():
 
     def showboxes(self):
         fig, ax = plt.subplots(1)
-        ax.imshow(self.im, aspect ='auto')
+        ax.imshow(self.im, aspect='auto')
         for i in self.boxes:
             rect = patches.Rectangle((i[2], i[3]),
                                      i[0], i[1],
@@ -693,7 +704,36 @@ class lattice():
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
 
+    for j in range(5000, 40001, 5000):
+        data = np.transpose(np.loadtxt(
+            '/home/sam/SamL/SpinTextures/'+str(j)+'_datafromatoms.txt',
+            skiprows=140))
+        print trapz(data[1], x=data[0])
+    # pk.area()
+    # print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
+    # print
+    # pk.fit_lorentzian()
+    # pk.area()
+    # print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
+    # print
+    # pk.fit_pseudovoight()
+    # pk.area()
+    # print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
+    # print
+    # pk.area()
+    # pk.analyse_fit()
+    # print pk.popt
+    # print pk.errs
+    # print
+    # print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
+    # pk.fit_asymloren() ; pk.analyse_fit() ; print pk.fit
+    # pk.fit_gaussian() ; pk.analyse_fit()  ; print pk.fit
+    # pk.fit_pseudovoight(); pk.analyse_fit();print pk.fit
+    # pk.fit_lorentzian() ; pk.analyse_fit(); print pk.fit
+    # pk.plot()
+'''
     def h5toarray():
         im = h5.File('test_images/skyrmion.nxs', 'r')
         im = scipy.squeeze(im[im.keys()[0]]["scan_data"]["data_14"])
@@ -717,7 +757,6 @@ if __name__ == "__main__":
     print im.popt
     plt.show()
 
-'''
     data = np.transpose(np.loadtxt(
         '/home/sam/Data/i16_Diamond/GdPd2Si3/730435.dat',
         skiprows=140))
@@ -786,40 +825,4 @@ if __name__ == "__main__":
            pk.update_init(newparams)
            pk.fit_2dgaussian()
            pk.plot()
-
-
-       import matplotlib.pyplot as plt
-
-       data = np.transpose(np.loadtxt(
-           '/home/sam/Data/i16_Diamond/GdPd2Si3/730435.dat',
-           skiprows=140))
-       pk = Peak1D(data[0], data[-5])
-       # pk.fit_gaussian()
-       # pk.area()
-       # print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
-       # print
-       # pk.fit_lorentzian()
-       # pk.area()
-       # print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
-       # print
-       # pk.fit_pseudovoight()
-       # pk.area()
-       # print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
-       # print
-       pk.fit_multipeak(['Pseudovoight', 'Pseudovoight'],
-                        [69.5, 0.11, 0.5,  10000,
-                         69.7, 0.2, 0.5,  10000, 260000],
-                        plot=True)
-       pk.plot(detail=True)
-       pk.area()
-       pk.analyse_fit()
-       print pk.popt
-       print pk.errs
-       print
-       print pk.area_anal, pk.area_quad, pk.area_trapz, pk.area_raw
-       # pk.fit_asymloren() ; pk.analyse_fit() ; print pk.fit
-       # pk.fit_gaussian() ; pk.analyse_fit()  ; print pk.fit
-       # pk.fit_pseudovoight(); pk.analyse_fit();print pk.fit
-       # pk.fit_lorentzian() ; pk.analyse_fit(); print pk.fit
-       # pk.plot()
-        '''
+'''
