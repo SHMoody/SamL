@@ -62,16 +62,16 @@ class magnetic_structure:
 
 if __name__ == "__main__":
     m = magnetic_structure()
-    m.unit_cell('Cu2OSeO3.xyz', 1, 1, 10000)
+    m.unit_cell('Cu2OSeO3.txt', 1, 1, 10000)
     m.helix(m.lat, np.array([0, 0, 1./138.547*np.pi]))
-    I = np.zeros(2000)
+    I = np.zeros(4000)
     x = 0
-    qs = np.linspace(3.9, 4.1, 2000)
+    qs = np.linspace(0.992, 1.008, 4000)
     for q in qs:
         print x
         q = np.array([0, 0, q])
         I[x] = m.REXS(q, m.lat, m.m, 1, 1, 1, 45*np.pi/180.,
-                      np.array([1, 0, 0]), np.array([1, 0, 0]))
+                      np.array([0, 1, 0]), np.array([1, 0, 0]))
         x += 1
 
     plt.figure()
