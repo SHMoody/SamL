@@ -61,29 +61,23 @@ class magnetic_structure:
 
 
 if __name__ == "__main__":
-    m = magnetic_structure()
-    m.unit_cell('Cu2OSeO3.txt', 1, 1, 10000)
-    m.helix(m.lat, np.array([0, 0, 1./138.547*np.pi]))
-    I = np.zeros(4000)
-    x = 0
-    qs = np.linspace(0.992, 1.008, 4000)
-    for q in qs:
-        print x
-        q = np.array([0, 0, q])
-        I[x] = m.REXS(q, m.lat, m.m, 1, 1, 1, 45*np.pi/180.,
-                      np.array([0, 1, 0]), np.array([1, 0, 0]))
-        x += 1
+    from mpl_toolkits.mplot3d import Axes3D
+    from scipy.integrate import trapz
 
-    plt.figure()
-    plt.plot(qs, I)
-    plt.show()
-'''
+    m = magnetic_structure()
+    m.unit_cell('Cu2OSeO3.txt', 100, 100, 1)
+    m.helix(m.lat, np.array([1./138.547*np.pi, 0, 0]))
+    xs = np.linspace(0.95, 1.05, 1000)
+
+    I = np.zeros(shape=(np.shape(xs)))
+    for j in range(len(xs)):
+        print j
+        q = np.array([xs[j], 0, 0])
+        I[j] = m.REXS(q, m.lat, m.m, 1, 1, 1, 45*np.pi/180.,
+                      np.array([0, 0, 1]), np.array([0, 1, 0]))
+
+    print trapz(I, xs)
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(m.lat[0], m.lat[1], m.lat[2])
-    ax.quiver(m.lat[0], m.lat[1], m.lat[2],
-              moments[0], moments[1], moments[2],
-              pivot='middle', normalize=True, length=0.15)
-    ax.set_xlabel('x')
+    ax = fig.add_subplot(111)
+    ax.plot(xs, I)
     plt.show()
-'''
